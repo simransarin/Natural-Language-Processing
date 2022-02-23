@@ -4,105 +4,102 @@ import json, sys
 import math
 
 
-def processData():
-    file_path = sys.argv[1]
-    f = open(path, encoding = 'UTF-8')
-    
-    allSentences = f.read()
-    sentenceList = allSentences.splitlines()
-    
-    wordList = [sentence.split(" ") for sentence in sentenceList]
-    
-    #tagCount will contain tags and count of tags
-    tagCount = {
-                '_START_': len(wordList),
-                '_END_': len(wordList)
-            }
-    
-    #wordGivenTag will contain a dictionary of tags and count of those tags appearing with words
-    wordGivenTag = {}
-    
-    #contains transition Probabilities
-    tagGivenTag = {
-                '_START_':{},
-                }
+def processData(input_path):
+    sentences = open(input_path, encoding = 'UTF-8').read()
 
-    prevTag = ''
-    for sentence in wordList:
-        prevTag = '_START_'
+    #dictionary of sentences -> lists of words
+    words = [sentence.split(" ") for sentence in sentences.splitlines()] 
+
+    #Dictionary containing dictionary (tags: emmission prob) against tags
+    transitionDict = {}
+    transitionDict['_stag_'] = {}
+    
+    #Dictionary storing length of tags and tags
+    tags = {}
+    tags['_stag_'] = len(words)
+    tags['_etag_'] = len(words)
+
+    #Dictionary containing dictionary against words 
+    emmissionDict = {}
+
+    previous_tag = ''
+    for sentence in words:
+        previous_tag = '_stag_'
         for word in sentence:
-            wordTag = word.split("/")#wordTag is a list of the word and the tag
-            currTag = wordTag[-1]#Get the tag here
-            if currTag in tagCount:
-                tagCount[currTag] = tagCount[currTag] + 1
+            #list of the word and the tag
+            wordTag = word.split("/")
+            current_tag = wordTag[-1]#Get the tag here //change from -1 to 1
+            if current_tag in tags:
+                tags[current_tag] += 1
             else:
-                tagCount[currTag] = 1
+                tags[current_tag] = 1
 
-            observation = word[:word.rfind("/")]
-            if observation in wordGivenTag:
-                if currTag in wordGivenTag[observation]:#if the tag for a particular observation does'nt exist add word[:word.rfind("/")]] = 1;
-                    wordGivenTag[observation][currTag] = wordGivenTag[observation][currTag] + 1
+            #emmission
+            observation = word[:word.rfind("/")] #here the word will be saved 
+            if observation in emmissionDict:
+                if current_tag in emmissionDict[observation]:#if the tag for a particular observation does'nt exist add word[:word.rfind("/")]] = 1;
+                    emmissionDict[observation][current_tag] += 1
                 else:
-                    wordGivenTag[observation][currTag] = 1
+                    emmissionDict[observation][current_tag] = 1
             else:
-                 wordGivenTag[observation] = dict()
-                 wordGivenTag[observation][currTag] = 1   
+                 emmissionDict[observation] = dict()
+                 emmissionDict[observation][current_tag] = 1   
 
-            if prevTag in tagGivenTag:
-                if currTag in tagGivenTag[prevTag]:
-                    tagGivenTag[prevTag][currTag] += 1
+            # transition tag
+            if previous_tag in transitionDict:
+                if current_tag in transitionDict[previous_tag]:
+                    transitionDict[previous_tag][current_tag] += 1
                 else:
-                    tagGivenTag[prevTag][currTag] = 1                   
+                    transitionDict[previous_tag][current_tag] = 1                   
             else:
-                tagGivenTag[prevTag] = dict()
-                tagGivenTag[prevTag][currTag] = 1
-            prevTag = currTag
+                transitionDict[previous_tag] = dict()
+                transitionDict[previous_tag][current_tag] = 1
+            previous_tag = current_tag
 
-        if prevTag in tagGivenTag:
-            if '_END_' in tagGivenTag[prevTag]:
-                tagGivenTag[prevTag]['_END_'] += 1
+        if previous_tag in transitionDict:
+            if '_etag_' in transitionDict[previous_tag]:
+                transitionDict[previous_tag]['_etag_'] += 1
             else:
-                tagGivenTag[prevTag]['_END_'] = 1                   
+                transitionDict[previous_tag]['_etag_'] = 1                   
         else:
-            tagGivenTag[prevTag] = dict()
-            tagGivenTag[prevTag]['_END_'] = 1
+            transitionDict[previous_tag] = dict()
+            transitionDict[previous_tag]['_etag_'] = 1
             
-        Smoothing(tagGivenTag, tagCount)
+        Smoothing(transitionDict, tags)
     
-def Smoothing(tagGivenTag, tagCount):#, wordGivenTag):
+def Smoothing(transitionDict, emmissionDict, tags):
     smoothFact = 2#2
-    leng =4*len(tagCount) -4#+ 2 #4*logtC+2
+    leng =4*len(tags) -4#+ 2 #4*logtC+2
     
-    for currTag in tagCount:
-        tagCount[currTag] += leng
-        if currTag == '_END_':
+    for current_tag in tags:
+        tags[current_tag] += leng
+        if current_tag == '_etag_':
             continue
-        for nextTag in tagCount:
-            if nextTag == '_START_':# newAddition
+        for next_tag in tags:
+            if next_tag == '_stag_':# newAddition
                 continue#newAddition
-            if nextTag in tagGivenTag[currTag]:
-                tagGivenTag[currTag][nextTag] += smoothFact
+            if next_tag in transitionDict[current_tag]:
+                transitionDict[current_tag][next_tag] += smoothFact
             else:
-                tagGivenTag[currTag][nextTag] = smoothFact
+                transitionDict[current_tag][next_tag] = smoothFact
+    calc_prob(tags, transitionDict, emmissionDict)
 
-processData()
-Smoothing(tagGivenTag, tagCount)#, wordGivenTag) 
+def calc_prob(tags, transitionDict, emmissionDict):
+    logFactor = 2*len(tags)
+    for current_tag in transitionDict:
+        for next_tag in transitionDict[current_tag]:
+            transitionDict[current_tag][next_tag] = (math.log(transitionDict[current_tag][next_tag]) + logFactor) - math.log(tags[current_tag])
 
-logFactor = 2*len(tagCount)
-for currTag in tagGivenTag:
-    for nextTag in tagGivenTag[currTag]:
-        tagGivenTag[currTag][nextTag] = (math.log(tagGivenTag[currTag][nextTag]) + logFactor) - math.log(tagCount[currTag])
+    for word in emmissionDict:
+        for tag in emmissionDict[word]:
+            emmissionDict[word][tag] = (math.log(emmissionDict[word][tag])+ logFactor) - math.log(tags[tag])
+    model_write(tags, transitionDict, emmissionDict)
 
-for word in wordGivenTag:
-    for tag in wordGivenTag[word]:
-        wordGivenTag[word][tag] = (math.log(wordGivenTag[word][tag])+ logFactor) - math.log(tagCount[tag])
+def model_write(tags, transitionDict, emmissionDict):
+    model_path = 'hmmmodel.txt'
+    model_path = open(model_path, mode = 'w', encoding = 'UTF-8')
+    model_path.write(json.dumps(tags) + "\n")
+    model_path.write(json.dumps(emmissionDict) + "\n")
+    model_path.write(json.dumps(transitionDict))
 
-writeFilePath = 'hmmmodel.txt'
-writeFile = open(writeFilePath, mode = 'w', encoding = 'UTF-8')
-writeFile.write(json.dumps(tagCount))
-writeFile.write("\n")
-writeFile.write(json.dumps(wordGivenTag))
-writeFile.write("\n")
-writeFile.write(json.dumps(tagGivenTag))
-f.close();
-print("--- %s seconds ---" % (time.time() - start_time))
+processData(sys.argv[1])

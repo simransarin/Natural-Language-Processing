@@ -17,23 +17,24 @@ def ViterbiAlgo(tagCount, wordGivenTag, tagGivenTag):
          wordList = sentence.split()
          firstWord = wordList[0]
          Viterbi = []#Viterbi is a 3D  Dictionary containing word as the state, all tags for each state
-#Calculate Viterbi for first word
+        
+        #Calculate Viterbi for first word
          Viterbi.append({})
          States ={}
          if firstWord in wordGivenTag.keys():
-             States = wordGivenTag[firstWord]
+             States = wordGivenTag[firstWord] #dictionary
          else:
              States = tagCount
          for tag in States.keys():
-             if tag == '_START_':
+             if tag == '_stag_':
                  continue
              if firstWord in wordGivenTag.keys():
                  emissionProb = wordGivenTag[firstWord][tag]
              else:
                  emissionProb = 1
              Viterbi[0][tag]={}
-             Viterbi[0][tag]['probability'] = tagGivenTag['_START_'][tag] * emissionProb                                               
-             Viterbi[0][tag]['backpointer'] = '_START_'
+             Viterbi[0][tag]['probability'] = tagGivenTag['_stag_'][tag] * emissionProb                                               
+             Viterbi[0][tag]['backpointer'] = '_stag_'
         
          #Start from word 1
          for i in range(1,len(wordList)):
@@ -44,7 +45,7 @@ def ViterbiAlgo(tagCount, wordGivenTag, tagGivenTag):
              else:
                  States = tagCount
              for currTag in States.keys():
-                 if currTag == '_START_' or currTag == '_END_':
+                 if currTag == '_stag_' or currTag == '_etag_':
                      continue
                  if word in wordGivenTag.keys():
                      emissionProb = wordGivenTag[word][currTag]
@@ -54,7 +55,7 @@ def ViterbiAlgo(tagCount, wordGivenTag, tagGivenTag):
                  #print("Previous Keys ", Viterbi[i-1].keys())#['probability'])
                  #print("len of Viterbi", len(Viterbi[i-1]))
                  for prevTag in Viterbi[i-1].keys():#CHeck This
-                     if prevTag == '_START_' or prevTag == '_END_':
+                     if prevTag == '_stag_' or prevTag == '_etag_':
                          continue
                      tempProb = Viterbi[i-1][prevTag]['probability'] * \
                                 tagGivenTag[prevTag][currTag] * \
@@ -69,22 +70,23 @@ def ViterbiAlgo(tagCount, wordGivenTag, tagGivenTag):
                  
                  #print("currTag given to", i, " is", Viterbi[i][currTag])
              #print(c,"\n")
+
          #Do for End
          States = Viterbi[-1].keys()
          n = len(wordList)
          Viterbi.append({})
          maxProb ={'prob':0,'backpointer':''}
          for tag in States:
-             if tag == '_END_':
+             if tag == '_etag_':
                  continue
              tempProb = Viterbi[n-1][tag]['probability'] * \
-                                tagGivenTag[tag]['_END_'] 
+                                tagGivenTag[tag]['_etag_'] 
              if(tempProb>maxProb['prob']):
                  maxProb['prob'] = tempProb
                  maxProb['backpointer'] = tag
-         Viterbi[-1]['_END_']={}
-         Viterbi[-1]['_END_']['probability'] = maxProb['prob']
-         Viterbi[-1]['_END_']['backpointer'] = maxProb['backpointer'] 
+         Viterbi[-1]['_etag_']={}
+         Viterbi[-1]['_etag_']['probability'] = maxProb['prob']
+         Viterbi[-1]['_etag_']['backpointer'] = maxProb['backpointer'] 
          taggedSents.append(tagSentence(Viterbi, wordList))
 
      print(len(taggedSents))
@@ -92,8 +94,8 @@ def ViterbiAlgo(tagCount, wordGivenTag, tagGivenTag):
 
 def tagSentence(Viterbi, wordList):
     state = len(wordList)
-    #print(Viterbi[state]['_END_'])
-    tag = '_END_'
+    #print(Viterbi[state]['_etag_'])
+    tag = '_etag_'
     iList = ""
     i = len(wordList)-1
     while i >= 0:
