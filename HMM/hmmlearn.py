@@ -1,5 +1,3 @@
-import time
-start_time = time.time()
 import json, sys
 import math
 
@@ -9,7 +7,7 @@ class HMMLearn():
         self.processData(input_path)
 
     def processData(self, input_path):
-        f = open(input_path)#, encoding = 'UTF-8')
+        f = open(input_path, encoding = 'UTF-8')
         sentences = f.read()
         f.close()
 
@@ -102,7 +100,7 @@ class HMMLearn():
 
     def model_write(self, tags, transitionDict, emmissionDict):
         model_path = 'hmmmodel.txt'
-        model_file = open(model_path, mode = 'w')#, encoding = 'UTF-8')
+        model_file = open(model_path, mode = 'w', encoding = 'UTF-8')
         model_file.write(json.dumps(tags))
         model_file.write("\n")
         model_file.write(json.dumps(emmissionDict))
@@ -111,5 +109,3 @@ class HMMLearn():
         model_file.close()
 
 HMMLearn(sys.argv[1])
-
-print("--- %s seconds ---" % (time.time() - start_time))

@@ -1,6 +1,4 @@
 import json, sys
-import time
-start_time = time.time()
 
 class HMMDecode():
     def __init__(self, input_path, test_path):
@@ -35,7 +33,7 @@ class HMMDecode():
         return tags, emmissionDict, transitionDict, open_class_tags
 
     def ViterbiAlgo(self, tags, emmissionDict, transitionDict, open_class_tags, test_path):
-        f = open(test_path) #, encoding = 'UTF-8')
+        f = open(test_path , encoding = 'UTF-8')
         allSentencesTest = f.read()
         sentencesListTest = allSentencesTest.splitlines()
         taggedSents = []
@@ -82,7 +80,7 @@ class HMMDecode():
                         emissionProb = 1
                     maxProb ={'prob':0,'backpointer':''}
 
-                    for prevTag in Viterbi[i-1].keys():#CHeck This
+                    for prevTag in Viterbi[i-1].keys():
                         if prevTag == '_stag_' or prevTag == '_etag_':
                             continue
                         tempProb = Viterbi[i-1][prevTag]['probability'] * \
@@ -90,7 +88,7 @@ class HMMDecode():
                                     emissionProb
                         if(tempProb>maxProb['prob']):
                             maxProb['prob'] = tempProb
-                            maxProb['backpointer'] = prevTag#Viterbi[i-1][prevTag]['backpointer']
+                            maxProb['backpointer'] = prevTag
 
                     Viterbi[i][currTag] = {}
                     Viterbi[i][currTag]['probability'] = maxProb['prob']
@@ -129,10 +127,9 @@ class HMMDecode():
     
     def output_write(self, taggedSents):
         output_path = 'hmmoutput.txt'
-        output_file = open(output_path, mode = 'w')#, encoding = 'UTF-8')
+        output_file = open(output_path, mode = 'w', encoding = 'UTF-8')
         for sentence in taggedSents:
             output_file.write(sentence)
             output_file.write("\n")
 
 HMMDecode("hmmmodel.txt", sys.argv[1])
-print("--- %s seconds ---" % (time.time() - start_time))
