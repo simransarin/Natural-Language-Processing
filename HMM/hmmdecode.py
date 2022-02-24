@@ -6,16 +6,36 @@ class HMMDecode():
     def __init__(self, input_path, test_path):
         self.input_path = input_path
         self.test_path = test_path;
-        taggedSents = self.ViterbiAlgo(input_path, test_path)
+        tags, emmissionDict, transitionDict, open_class_tags = self.processData(input_path)
+        taggedSents = self.ViterbiAlgo(tags,emmissionDict,transitionDict, open_class_tags, test_path)
         self.output_write(taggedSents)
 
-    def ViterbiAlgo(self, input_path, test_path):
+    def processData(self, input_path):
         dictionaries = [json.loads(x) for x in open(input_path, mode = 'r', encoding = 'UTF-8').read().split('\n')]
         tags = dictionaries[0]
         emmissionDict = dictionaries[1]
         transitionDict = dictionaries[2]
 
-        f = open(test_path, encoding = 'UTF-8')
+
+        open_class_tags = []
+        tagof_unique_vocab = {}
+
+        for tag in tags.keys():
+            for word in emmissionDict.keys():
+                if tag in emmissionDict[word].keys():
+                    if tag in tagof_unique_vocab.keys():
+                        tagof_unique_vocab[tag] += 1 
+                    else: 
+                        tagof_unique_vocab[tag] = 1
+
+        for tag in tagof_unique_vocab.keys():
+            if tagof_unique_vocab[tag]>0.0350*len(emmissionDict.keys()):
+                open_class_tags.append(tag)
+
+        return tags, emmissionDict, transitionDict, open_class_tags
+
+    def ViterbiAlgo(self, tags, emmissionDict, transitionDict, open_class_tags, test_path):
+        f = open(test_path) #, encoding = 'UTF-8')
         allSentencesTest = f.read()
         sentencesListTest = allSentencesTest.splitlines()
         taggedSents = []
@@ -42,6 +62,7 @@ class HMMDecode():
                 Viterbi[0][tag]['probability'] = transitionDict['_stag_'][tag] * emissionProb                                               
                 Viterbi[0][tag]['backpointer'] = '_stag_'
             
+            print(open_class_tags)
             #Start from word 1
             for i in range(1,len(wordList)):
                 word = wordList[i]
@@ -56,6 +77,8 @@ class HMMDecode():
                     if word in emmissionDict.keys():
                         emissionProb = emmissionDict[word][currTag]
                     else:
+                        if currTag not in open_class_tags:
+                            continue
                         emissionProb = 1
                     maxProb ={'prob':0,'backpointer':''}
 
@@ -106,7 +129,7 @@ class HMMDecode():
     
     def output_write(self, taggedSents):
         output_path = 'hmmoutput.txt'
-        output_file = open(output_path, mode = 'w', encoding = 'UTF-8')
+        output_file = open(output_path, mode = 'w')#, encoding = 'UTF-8')
         for sentence in taggedSents:
             output_file.write(sentence)
             output_file.write("\n")
