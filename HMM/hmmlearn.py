@@ -5,10 +5,13 @@ import math
 
 
 def processData(input_path):
-    sentences = open(input_path, encoding = 'UTF-8').read()
+    f = open(input_path, encoding = 'UTF-8')
+    sentences = f.read()
+    f.close()
 
     #dictionary of sentences -> lists of words
-    words = [sentence.split(" ") for sentence in sentences.splitlines()] 
+    sentenceList = sentences.splitlines()
+    words = [sentence.split(" ") for sentence in sentenceList] 
 
     #Dictionary containing dictionary (tags: emmission prob) against tags
     transitionDict = {}
@@ -65,9 +68,6 @@ def processData(input_path):
             transitionDict[previous_tag] = dict()
             transitionDict[previous_tag]['_etag_'] = 1
             
-        Smoothing(transitionDict, tags)
-    
-def Smoothing(transitionDict, emmissionDict, tags):
     smoothFact = 2#2
     leng =4*len(tags) -4#+ 2 #4*logtC+2
     
@@ -79,12 +79,10 @@ def Smoothing(transitionDict, emmissionDict, tags):
             if next_tag == '_stag_':# newAddition
                 continue#newAddition
             if next_tag in transitionDict[current_tag]:
-                transitionDict[current_tag][next_tag] += smoothFact
+                transitionDict[current_tag][next_tag] = transitionDict[current_tag][next_tag] + smoothFact
             else:
                 transitionDict[current_tag][next_tag] = smoothFact
-    calc_prob(tags, transitionDict, emmissionDict)
 
-def calc_prob(tags, transitionDict, emmissionDict):
     logFactor = 2*len(tags)
     for current_tag in transitionDict:
         for next_tag in transitionDict[current_tag]:
@@ -93,13 +91,19 @@ def calc_prob(tags, transitionDict, emmissionDict):
     for word in emmissionDict:
         for tag in emmissionDict[word]:
             emmissionDict[word][tag] = (math.log(emmissionDict[word][tag])+ logFactor) - math.log(tags[tag])
+
     model_write(tags, transitionDict, emmissionDict)
 
 def model_write(tags, transitionDict, emmissionDict):
     model_path = 'hmmmodel.txt'
-    model_path = open(model_path, mode = 'w', encoding = 'UTF-8')
-    model_path.write(json.dumps(tags) + "\n")
-    model_path.write(json.dumps(emmissionDict) + "\n")
-    model_path.write(json.dumps(transitionDict))
+    model_file = open(model_path, mode = 'w', encoding = 'UTF-8')
+    model_file.write(json.dumps(tags))
+    model_file.write("\n")
+    model_file.write(json.dumps(emmissionDict))
+    model_file.write("\n")
+    model_file.write(json.dumps(transitionDict))
+    model_file.close()
 
 processData(sys.argv[1])
+
+print("--- %s seconds ---" % (time.time() - start_time))
