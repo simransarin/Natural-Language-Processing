@@ -14,16 +14,6 @@ class HMMLearn():
         self.transitionDict = {}
         self.tags = {};
 
-    def model_write(self):
-        model_path = 'hmmmodel.txt'
-        model_file = open(model_path, mode = 'w', encoding = 'UTF-8')
-        model_file.write(json.dumps(self.tags))
-        model_file.write("\n")
-        model_file.write(json.dumps(self.emmissionDict))
-        model_file.write("\n")
-        model_file.write(json.dumps(self.transitionDict))
-        model_file.close()
-
     def processData(self):
         f = open(self.input_path, encoding = 'UTF-8')
         sentences = f.read()
@@ -120,6 +110,14 @@ class HMMLearn():
         
         self.model_write()
 
-    
+    def model_write(self):
+        model_path = 'hmmmodel.txt'
+        model_file = open(model_path, mode = 'w', encoding = 'UTF-8')
+        model_file.write(json.dumps(self.tags))
+        model_file.write("\n")
+        model_file.write(json.dumps(self.emmissionDict))
+        model_file.write("\n")
+        model_file.write(json.dumps(self.transitionDict))
+        model_file.close()
 
 HMMLearn(sys.argv[1])
