@@ -2,12 +2,30 @@ import json, sys
 import math
 
 class HMMLearn():
+    input_path = ""
+    emmissionDict = {}
+    transitionDict = {}
+    tags = {}
+
     def __init__(self, input_path):
         self.input_path = input_path
-        self.processData(input_path)
+        self.processData()
+        self.emmissionDict = {}
+        self.transitionDict = {}
+        self.tags = {};
 
-    def processData(self, input_path):
-        f = open(input_path, encoding = 'UTF-8')
+    def model_write(self):
+        model_path = 'hmmmodel.txt'
+        model_file = open(model_path, mode = 'w', encoding = 'UTF-8')
+        model_file.write(json.dumps(self.tags))
+        model_file.write("\n")
+        model_file.write(json.dumps(self.emmissionDict))
+        model_file.write("\n")
+        model_file.write(json.dumps(self.transitionDict))
+        model_file.close()
+
+    def processData(self):
+        f = open(self.input_path, encoding = 'UTF-8')
         sentences = f.read()
         f.close()
 
@@ -16,96 +34,92 @@ class HMMLearn():
         words = [sentence.split(" ") for sentence in sentenceList] 
 
         #Dictionary containing dictionary (tags: emmission prob) against tags
-        transitionDict = {}
-        transitionDict['_stag_'] = {}
+        # transitionDict = {}
+        self.transitionDict['_stag_'] = {}
         
         #Dictionary storing length of tags and tags
-        tags = {}
-        tags['_stag_'] = len(words)
-        tags['_etag_'] = len(words)
+        # tags = {}
+        self.tags['_stag_'] = len(words)
+        self.tags['_etag_'] = len(words)
 
         #Dictionary containing dictionary against words 
-        emmissionDict = {}
-
-        previous_tag = ''
+        self.emmissionDict, previous_tag = {}, ''
+        
         for sentence in words:
             previous_tag = '_stag_'
             for word in sentence:
                 #list of the word and the tag
                 wordTag = word.split("/")
-                current_tag = wordTag[-1]#Get the tag here //change from -1 to 1
-                if current_tag in tags:
-                    tags[current_tag] += 1
+                current_tag = wordTag[-1]
+                if current_tag in self.tags:
+                    self.tags[current_tag] += 1
                 else:
-                    tags[current_tag] = 1
+                    self.tags[current_tag] = 1
 
-                #emmission
-                observation = word[:word.rfind("/")] #here the word will be saved 
-                if observation in emmissionDict:
-                    if current_tag in emmissionDict[observation]:#if the tag for a particular observation does'nt exist add word[:word.rfind("/")]] = 1;
-                        emmissionDict[observation][current_tag] += 1
-                    else:
-                        emmissionDict[observation][current_tag] = 1
-                else:
-                    emmissionDict[observation] = dict()
-                    emmissionDict[observation][current_tag] = 1   
+                self.create_em_dict(word, current_tag)
+                previous_tag = self.create_trx_dict(current_tag, previous_tag)
 
-                # transition tag
-                if previous_tag in transitionDict:
-                    if current_tag in transitionDict[previous_tag]:
-                        transitionDict[previous_tag][current_tag] += 1
-                    else:
-                        transitionDict[previous_tag][current_tag] = 1                   
+            if previous_tag in self.transitionDict:
+                if '_etag_' in self.transitionDict[previous_tag]:
+                    self.transitionDict[previous_tag]['_etag_'] += 1
                 else:
-                    transitionDict[previous_tag] = dict()
-                    transitionDict[previous_tag][current_tag] = 1
-                previous_tag = current_tag
-
-            if previous_tag in transitionDict:
-                if '_etag_' in transitionDict[previous_tag]:
-                    transitionDict[previous_tag]['_etag_'] += 1
-                else:
-                    transitionDict[previous_tag]['_etag_'] = 1                   
+                    self.transitionDict[previous_tag]['_etag_'] = 1                   
             else:
-                transitionDict[previous_tag] = dict()
-                transitionDict[previous_tag]['_etag_'] = 1
+                self.transitionDict[previous_tag] = dict()
+                self.transitionDict[previous_tag]['_etag_'] = 1
 
-        smoothFact = 2#2
-        leng =4*len(tags) -4#+ 2 #4*logtC+2
+        smoothFact = 2
+        leng =4*len(self.tags) -4
         
-        for current_tag in tags:
-            tags[current_tag] += leng
+        for current_tag in self.tags:
+            self.tags[current_tag] += leng
             if current_tag == '_etag_':
                 continue
-            for next_tag in tags:
-                if next_tag == '_stag_':# newAddition
-                    continue#newAddition
-                if next_tag in transitionDict[current_tag]:
-                    transitionDict[current_tag][next_tag] += smoothFact
+            for next_tag in self.tags:
+                if next_tag == '_stag_':
+                    continue
+                if next_tag in self.transitionDict[current_tag]:
+                    self.transitionDict[current_tag][next_tag] += smoothFact
                 else:
-                    transitionDict[current_tag][next_tag] = smoothFact
-        self.calc_prob(tags, transitionDict, emmissionDict)
+                    self.transitionDict[current_tag][next_tag] = smoothFact
+        self.calc_prob()
 
-    def calc_prob(self, tags, transitionDict, emmissionDict):
-        logFactor = 2*len(tags)
-        for current_tag in transitionDict:
-            for next_tag in transitionDict[current_tag]:
-                transitionDict[current_tag][next_tag] = (math.log(transitionDict[current_tag][next_tag]) + logFactor) - math.log(tags[current_tag])
+    def create_em_dict(self, word, current_tag):
+        #emmission
+        observation = word[:word.rfind("/")]
+        if observation in self.emmissionDict:
+            if current_tag in self.emmissionDict[observation]:
+                self.emmissionDict[observation][current_tag] += 1
+            else:
+                self.emmissionDict[observation][current_tag] = 1
+        else:
+            self.emmissionDict[observation] = dict()
+            self.emmissionDict[observation][current_tag] = 1  
 
-        for word in emmissionDict:
-            for tag in emmissionDict[word]:
-                emmissionDict[word][tag] = (math.log(emmissionDict[word][tag])+ logFactor) - math.log(tags[tag])
+    def create_trx_dict(self, current_tag, previous_tag):
+         # transition tag
+        if previous_tag in self.transitionDict:
+            if current_tag in self.transitionDict[previous_tag]:
+                self.transitionDict[previous_tag][current_tag] += 1
+            else:
+                self.transitionDict[previous_tag][current_tag] = 1                   
+        else:
+            self.transitionDict[previous_tag] = dict()
+            self.transitionDict[previous_tag][current_tag] = 1
+        return current_tag
 
-        self.model_write(tags, transitionDict, emmissionDict)
+    def calc_prob(self):
+        logFactor = 2*len(self.tags)
+        for word in self.emmissionDict:
+            for tag in self.emmissionDict[word]:
+                self.emmissionDict[word][tag] = (math.log(self.emmissionDict[word][tag])+ logFactor) - math.log(self.tags[tag])
 
-    def model_write(self, tags, transitionDict, emmissionDict):
-        model_path = 'hmmmodel.txt'
-        model_file = open(model_path, mode = 'w', encoding = 'UTF-8')
-        model_file.write(json.dumps(tags))
-        model_file.write("\n")
-        model_file.write(json.dumps(emmissionDict))
-        model_file.write("\n")
-        model_file.write(json.dumps(transitionDict))
-        model_file.close()
+        for current_tag in self.transitionDict:
+            for next_tag in self.transitionDict[current_tag]:
+                self.transitionDict[current_tag][next_tag] = (math.log(self.transitionDict[current_tag][next_tag]) + logFactor) - math.log(self.tags[current_tag])
+        
+        self.model_write()
+
+    
 
 HMMLearn(sys.argv[1])
